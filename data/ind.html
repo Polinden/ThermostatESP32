@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+ <head>
+   <meta charset="utf-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1">
+   <script src="https://cdn.jsdelivr.net/npm/vue"></script>
+   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <style>
+        body {
+          background-color: lightblue;
+          font-family: Arial;
+        }
+        .button {
+          background-color: #4CAF50; 
+          border: none;
+          color: white;
+          padding: 12px 28px;
+          text-align: center;
+          text-decoration: none;
+          display: inline-block;
+          font-size: 14px;
+          border-radius: 8px;
+        }
+        .button1 {background-color: #f44336 !important}
+
+        .button2 {background-color: navy !important; padding: 12px 12px !important;}
+
+	.button:disabled,
+        .button[disabled]{
+           border: 1px solid #999999;
+           background-color: #cccccc;
+           color: #666666;
+        }
+
+        p {font-size: 16px;}
+
+        input {
+           font-size: 13px;
+           border-radius: 4px;
+        }
+
+        .amode {color: navy;}
+        .tmode {font-size: 19px !important;}        
+        .padl {margin-left: 20px !important;}
+        input[type=number]{width: 90px; font-size: 15px; margin-left: 14px !important;}
+        input[type=number]{width: 90px; font-size: 105%}
+        table {margine: 0}
+
+        @media (min-width: 220px) and (max-width: 600px) {
+           table{
+            width:100%;
+            padding: 4%;
+	    padding-left: 9%;
+           }
+        }
+  </style>
+  </head>
+  <body>
+  <div id=app>    
+        <table>
+           <tr class="row">
+                <td class="col" align="right">
+                    <p class='tmode'> <b>Нагреватель </b></p>
+                </td>
+                <td class="col" align="left">
+                    <p class='tmode'> <b id='status'>...</b></p>
+                </td>
+            </tr>
+           <tr class="row">
+                <td class="col" colspan=2  align="center">
+                    <p class="amode"> Управление вручную</p>
+                </td>
+            </tr>
+            <tr class="row">
+                <td class="col" align='left'>
+                    <a href="/on" class="button button1">Включить</a>
+                </td>
+                <td class="col" align='left'>
+                    <a href="/off" class="button">Выключить</a>
+                </td>
+            </tr>
+            <tr height="25px"></tr>
+            <tr class="row">
+                <td class="col" align='center'>
+                    <div id="chart_div1" style="width: 110px; height: 110px;"></div>
+                </td>
+                <td class="col" align='center'>
+                    <div id="chart_div2" style="width: 110px; height: 110px;"></div>
+                </td>
+            </tr>
+           <tr height="5px"></tr>
+       </table>   
+       <form action="go_auto" method="get">
+           <table>
+               <tr class="row">
+                    <td class="col">
+                        <p class='amode'>Автоматический режим</p>
+                    </td>
+                    <td class="col">
+                        <input class="button button2" type="submit" id="str_b" :value="updateInput"/>
+                    </>
+                    </td>
+                </tr>
+                <tr class="row">
+                    <td class="col">
+                        <label for='t_start'>Включить, C </label>
+                        <input name="start_use" v-model=start_use type="checkbox" @change="start_use=$event.target.checked" value="true"/>
+                    </td>
+                    <td class="col">
+                        <label for="t_stop">Выключить, C </label>  
+                        <input name="stop_use" v-model=stop_use type="checkbox" @change="stop_use=$event.target.checked"  value="true"/>
+                    </td>
+                </tr>
+                <tr class="row">
+                    <td class="col">
+                        <input v-model=start_t v-on:change="stop_t=parseInt(start_t)" name="start_t" step="1" type="range" min="15" max="35" id="t_start" :disabled="!start_use"/>
+                    </td>
+                    <td class="col">
+                        <input v-model=stop_t name="stop_t" step="1" type="range" :min=start_t max="40" id="t_stop" :disabled="!stop_use"/>
+                    </td>
+                </tr>
+                <tr class="row">
+                    <td class="col">
+                        <input  size="6" v-model=start_t  v-on:change="stop_t=parseInt(start_t)" type="number" id="temp_start" min="15" max="35" :disabled="!start_use"/>
+                    </td>
+                    <td class="col">
+                        <input  size="6" v-model=stop_t type="number" id="temp_stop"  :min=start_t max="40" :disabled="!stop_use"/>
+                    </td>
+                </tr>
+        </table>
+     </form>
+  </div>
+
+   <script type="text/javascript">
+      google.charts.load('current', {'packages':['gauge']});
+      google.charts.setOnLoadCallback(drawChart);
+      var chart1;
+      var chart2;
+      var data1;
+      var data2;
+      var options1;
+      var options2;
+
+      function drawChart() {
+        data1 = google.visualization.arrayToDataTable([
+          ['Label', 'Value'],
+          ['Temperature', 24]
+        ]);
+        data2 = google.visualization.arrayToDataTable([
+          ['Label', 'Value'],
+          ['Humidity', 50]
+        ]);
+
+	var setTemp=function(temp) {
+		  if (!temp) return;  
+		  data1.setValue(0, 1, parseFloat(temp));
+		  chart1.draw(data1, options1);
+	    
+        };
+	var setHumid=function(humid) {
+		  if (!humid) return;  
+		  data2.setValue(0, 1, parseFloat(humid));
+		  chart2.draw(data2, options2);
+	    
+        };
+        options1 = {
+          width: 110, height: 110,
+          redFrom: 40, redTo: 60,
+          yellowFrom:30, yellowTo: 40,
+          minorTicks: 10,
+	  min: 10,
+	  max: 50
+        };
+        options2 = {
+          width: 110, height: 110,
+          redFrom: 0, redTo: 40,
+          yellowFrom:40, yellowTo: 60,
+          minorTicks: 5,
+	  min: 20,
+	  max: 100
+        };
+
+        chart1 = new google.visualization.Gauge(document.getElementById('chart_div1'));
+        chart2 = new google.visualization.Gauge(document.getElementById('chart_div2'));
+        chart1.draw(data1, options1);
+        chart2.draw(data2, options2);
+
+
+        var setStatus=function(status) {
+              document.getElementById('status').innerHTML = status;
+        };
+
+
+
+    let socket = new WebSocket('ws://' + window.location.hostname + '/ws');
+	socket.onopen = function(e) {
+	  console.log("[open] Connection established");
+	  //socket.send("My name is John");
+	};
+
+     socket.onmessage = function(event) {
+	  var e = document.getElementById('for_temp');
+	      let data_ws=event.data;
+	      let z=data_ws.split("+++");
+	      if (z.length<3) return;
+	      setTemp(z[0]);
+  	      setHumid(z[1]);
+              setStatus(z[2]);
+	};
+
+     socket.onclose = function(event) {
+	  if (event.wasClean) {
+	    console.log(`[close] Connection closed cleanly, code=${event.code} reason=${event.reason}`);
+	  } else {
+	    console.log('[close] Connection died');
+	  }
+        };
+
+     socket.onerror = function(error) {
+	  console.log(`[error] ${error.message}`);
+	  setTemp("0.0");
+	  setHumid("0.0");
+       };
+ };
+</script>
+<script>     
+     var app = new Vue({
+      el: '#app',
+      data: {
+        start_t : %start_t%,
+        stop_t :  %stop_t%,
+        start_use : %start_use%,
+        stop_use :  %stop_use%
+      },
+
+      computed: {     
+         updateInput: function() {
+           return !(this.start_use||this.stop_use)?'Выключить':'Включить';
+       }
+      }
+     });
+ </script>
+</body>
+</html>
