@@ -8,7 +8,7 @@
   <li>Relay (any arduino compatible)</li>
   <li>OLED Waveshare screen 0.96</li>
   <li>Thermometer STH-31</li>
-  <li>Wires, box, AC/DC...</li>
+  <li>Cables, box, AC/DC...</li>
 </ol>
 
 ### We used software:
@@ -23,5 +23,5 @@
 ### What we'v got:
 <p align="left">
   <img src="assets/image1.jpg" width="200" title="Smartphone screen">
-  <img src="assets/image2.jpg" width="200" title="IoT in a box">
+  <img src="assets/image3.jpg" width="200" title="IoT in a box">
 </p>
