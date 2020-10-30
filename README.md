@@ -1,6 +1,6 @@
 # ThermostatESP32
 
-## IoT thermostat. 
+## IoT thermostat 
 
 ### We used electronic components:
 <ol>
@@ -22,6 +22,6 @@
 
 ## What we'v got:
 <p align="center">
-  <img src="your_relative_path_here" width="350" title="Smartphone screen">
-  <img src="your_relative_path_here_number_2_large_name" width="350" title="IoT in a box">
+  <img src="assets/image1.jpg" width="350" title="Smartphone screen">
+  <img src="assets/image2.jpg" width="350" title="IoT in a box">
 </p>
