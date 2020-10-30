@@ -1,11 +1,11 @@
-#include <WiFiClient.h>
+#include <WiFi.h>
 #include "ESPAsyncWebServer.h"
 #include "SPIFFS.h"
 #include "Adafruit_SHT31.h"
-#include "GyverTimer.h"
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <SPI.h>
+#include "GyverTimer.h"
 
 #define SCREEN_WIDTH 128 
 #define SCREEN_HEIGHT 64 
@@ -18,28 +18,28 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT,
   OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 
 
-
-
 const int ledPin = 2;
 const char* ssid = "***";
 const char* password = "***";
 IPAddress ip(192,168,77,225); 
 IPAddress gateway(192,168,77,1);
 IPAddress subnet(255,255,255,0);
+IPAddress primaryDNS(8, 8, 8, 8); 
+IPAddress secondaryDNS(192.168.77.1); 
 
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
-
-
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
+GTimer myTimer1(MS, 2000);
+GTimer myTimer2(MS, 4000);
 
-GTimer myTimer(MS, 2000);
-
+boolean is_on=false;
 boolean start_use=false;
 boolean stop_use=false;
 float start_t=20;
 float stop_t=30;
-
+float t=0.0;
+float h=0.0;
 
 String processor(const String& var){
   String response;
@@ -64,10 +64,12 @@ String processor(const String& var){
 }
 
 
-void withTemp(float t, float h){
-   if ((start_use) && (t<start_t)) digitalWrite(ledPin, HIGH);   
-   if ((stop_use) && (t>stop_t)) digitalWrite(ledPin, LOW);
+void withAuto(float t) {
+   if ((start_use) && (t<start_t)) {digitalWrite(ledPin, HIGH);  boolean is_on=true;}
+   if ((stop_use) && (t>stop_t))  {digitalWrite(ledPin, LOW); boolean is_on=false;}  
+}
 
+void withScreen(float t, float h){
    display.clearDisplay();
    display.setTextSize(2);             
    display.setTextColor(SSD1306_WHITE);
@@ -80,9 +82,7 @@ void withTemp(float t, float h){
    display.println("Temp: "+String(t)+"C");  
    display.println("");  
    display.println("Humid: "+String(h)+"%");  
-   display.display();
-   delay(1);
-         
+   display.display();    
 }
 
 void setup(){
@@ -91,51 +91,47 @@ void setup(){
 
   if(!SPIFFS.begin(true)){
    Serial.println("An Error has occurred while mounting SPIFFS");
-   return;
-  }
+  }  
   
-  WiFi.begin(ssid, password);
-  WiFi.config(ip, gateway, subnet);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(1000);
-    Serial.println("Connecting to WiFi..");
+  WiFi.disconnect(true);
+  if (!WiFi.config(ip, gateway, subnet, primaryDNS, secondaryDNS)) {
+    Serial.println("STA Failed to configure");
   }
-
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("");
+  Serial.println("WiFi connected");
+  Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
-
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(true);
 
   Serial.println("SHT31 test");
   if (! sht31.begin(0x44)) {  
     Serial.println("Couldn't find SHT31");
-    while (1) delay(1);
   }
 
 
+  
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
     request->send(SPIFFS, "/ind.html", String(), false, processor);
   });
 
-  server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(SPIFFS, "/style.css", "text/css");
-
-  });
-
-
-
 
   server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request){
-    digitalWrite(ledPin, HIGH);    
+    digitalWrite(ledPin, HIGH);   
+    boolean is_on=true;
     request->send(SPIFFS, "/ind.html", String(), false, processor);
   });
-
 
   server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request){
-    digitalWrite(ledPin, LOW);    
+    digitalWrite(ledPin, LOW); 
+    boolean is_on=false;
     request->send(SPIFFS, "/ind.html", String(), false, processor);
-
   });
-
-
 
   server.on("/go_auto", HTTP_GET, [](AsyncWebServerRequest *request){
      if (request->hasParam("start_use")) {      
@@ -151,27 +147,28 @@ void setup(){
     request->redirect("/");   
   });
 
-
   server.addHandler(&ws);
   server.begin();
 
   if(!display.begin(SSD1306_SWITCHCAPVCC)) Serial.println(F("SSD1306 allocation failed"));
   display.display();
-  delay(2000); // Pause for 2 seconds
+  delay(1000); 
   display.clearDisplay();
 
 }
  
 
 void loop(){
-  if (myTimer.isReady()){
-     float t=sht31.readTemperature();
-     float h=sht31.readHumidity();
+  if (myTimer1.isReady()) {
+        t=sht31.readTemperature();
+        h=sht31.readHumidity();
+        if (!isnan(t) && !isnan(h)) {withAuto(t); withScreen(t, h);
+  }
+  if (myTimer2.isReady()){
      if (!isnan(t) && !isnan(h)) {        
         String temp= String(t)+"+++"+String(h)+"+++";
-        if(digitalRead(ledPin)) temp=temp+"включен"; else temp=temp+"выключен";
+        if(is_on) temp=temp+"включен"; else temp=temp+"выключен";
         ws.textAll(temp.c_str());
-        withTemp(t,h);
      }   
   }
 }
