@@ -20,7 +20,7 @@
   <li>Alex Gyver's helper libs...</li>
 </ol>
 
-## What we'v got:
+### What we'v got:
 <p align="center">
   <img src="assets/image1.jpg" width="350" title="Smartphone screen">
   <img src="assets/image2.jpg" width="350" title="IoT in a box">
