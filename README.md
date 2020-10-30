@@ -21,7 +21,7 @@
 </ol>
 
 ### What we'v got:
-<p align="center">
+<p align="left">
   <img src="assets/image1.jpg" width="200" title="Smartphone screen">
   <img src="assets/image2.jpg" width="200" title="IoT in a box">
 </p>
