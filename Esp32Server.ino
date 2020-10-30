@@ -87,8 +87,8 @@ const unsigned char myBitmap [] PROGMEM = {
 
 
 const int ledPin = 2;
-const char* ssid = "Polynas_Home";
-const char* password = "Zopa73Ricky79DomZa";
+const char* ssid = "***";
+const char* password = "***";
 IPAddress ip(192,168,77,225); 
 IPAddress gateway(192,168,77,1);
 IPAddress subnet(255,255,255,0);
@@ -133,8 +133,8 @@ String processor(const String& var){
 
 
 void withAuto(float t) {
-   if ((start_use) && (t<start_t)) {digitalWrite(ledPin, HIGH);  boolean is_on=true;}
-   if ((stop_use) && (t>stop_t))  {digitalWrite(ledPin, LOW); boolean is_on=false;}  
+   if ((start_use) && (t<start_t)) {digitalWrite(ledPin, HIGH);  is_on=true;}
+   if ((stop_use) && (t>stop_t))  {digitalWrite(ledPin, LOW); is_on=false;}  
 }
 
 void withScreen(float t, float h){
@@ -199,13 +199,13 @@ void setup(){
   server.on("/on", HTTP_GET, [](AsyncWebServerRequest *request){
     digitalWrite(ledPin, HIGH);   
     is_on=true;
-    request->send(SPIFFS, "/ind.html", String(), false, processor);
+    request->send(200, "application/json", "{\"message\":\"On\"}");
   });
 
   server.on("/off", HTTP_GET, [](AsyncWebServerRequest *request){
     digitalWrite(ledPin, LOW); 
     is_on=false;
-    request->send(SPIFFS, "/ind.html", String(), false, processor);
+    request->send(200, "application/json", "{\"message\":\"Off\"}");    
   });
 
   server.on("/go_auto", HTTP_GET, [](AsyncWebServerRequest *request){
