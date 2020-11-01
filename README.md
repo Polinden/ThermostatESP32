@@ -20,6 +20,16 @@
   <li>Alex Gyver's helper libs...</li>
 </ol>
 
+### Features:
+<ol>
+  <li>Multicore and semaphore</li>
+  <li>App update over the air</li>
+  <li>Local file system (for html)</li>
+  <li>Message push via WebSocket</li>
+  <li>I2S and SPI as peripheral</li>
+</ol>
+
+
 ### What we'v got:
 <p align="left">
   <img src="assets/image1.jpg" width="200" title="Smartphone screen">

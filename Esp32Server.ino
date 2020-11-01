@@ -15,8 +15,7 @@
 #define OLED_DC    27
 #define OLED_CS    16
 #define OLED_RESET 14
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT,
-  OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
+
 
 const unsigned char myBitmap [] PROGMEM = {
   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
@@ -96,20 +95,47 @@ IPAddress subnet(255,255,255,0);
 IPAddress primaryDNS(8, 8, 8, 8); 
 IPAddress secondaryDNS(192,168,77,1); 
 
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET, OLED_CS);
 Adafruit_SHT31 sht31 = Adafruit_SHT31();
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
-GTimer myTimer1(MS, 2000);
-GTimer myTimer2(MS, 4000);
-SemaphoreHandle_t mutex1;
-
-volatile boolean is_on=false;
+GTimer myTimer(MS, 3000);
+SemaphoreHandle_t mutex;
 boolean start_use=false;
 boolean stop_use=false;
 float start_t=20;
 float stop_t=30;
-volatile float t=0.0;
-volatile float h=0.0;
+volatile boolean is_on=false;
+struct THD {float t; float h;};
+THD thd {0.0, 0.0};
+
+class THData
+{
+  private:
+     float t;
+     float h;
+     SemaphoreHandle_t mutex;
+  public:
+     THData(SemaphoreHandle_t m){mutex=m; t=0; h=0;}
+     
+     void takeTH(THD * thd){
+        if( xSemaphoreTake( mutex, ( TickType_t ) 100 ) == pdTRUE ) { 
+           thd->t=t; thd->h=h;                       
+           xSemaphoreGive(mutex);
+        }       
+      }
+
+      boolean updateTH(float tn, float hn){
+        if (isnan(tn) || isnan(hn)) return false; 
+        if( xSemaphoreTake( mutex, ( TickType_t ) 100 ) == pdTRUE ) {   
+           t=tn; h=hn;            
+           xSemaphoreGive(mutex);
+           return true;
+        }          
+        else return false;
+      }
+};
+THData thdata=NULL;
 
 String processor(const String& var){
   String response;
@@ -133,13 +159,12 @@ String processor(const String& var){
   return String();
 }
 
-
-void withAuto() {
-   if ((start_use) && (t<start_t)) {digitalWrite(ledPin, HIGH);  is_on=true;}
-   if ((stop_use) && (t>stop_t))  {digitalWrite(ledPin, LOW); is_on=false;}  
+void withAuto(THD * thd) {
+   if ((start_use) && (thd->t<start_t)) {digitalWrite(ledPin, HIGH);  is_on=true;}
+   if ((stop_use) && (thd->t>stop_t))  {digitalWrite(ledPin, LOW); is_on=false;}  
 }
 
-void withScreen(float t1, float h1){
+void withScreen(float t, float h){
    display.clearDisplay();
    display.setTextSize(2);             
    display.setTextColor(SSD1306_WHITE);
@@ -149,8 +174,8 @@ void withScreen(float t1, float h1){
    display.drawLine(0, 18, display.width(), 18, SSD1306_WHITE);
    display.setCursor(0,26);             
    display.setTextSize(1);                
-   display.println("Temp: "+String(t1)+"C");   
-   display.println("Humid: "+String(h1)+"%");  
+   display.println("Temp: "+String(t)+"C");   
+   display.println("Humid: "+String(h)+"%");  
    display.println("");  
    if (is_on) display.println("Heater is On");  
    else display.println("Heater is Off");     
@@ -159,14 +184,19 @@ void withScreen(float t1, float h1){
 
 
 void taskForScreen( void * pvParameters ){
-   float tt=0.0;
-   float hh=0.0;
+   float t=0.0;
+   float h=0.0;   
+   const TickType_t xDelay = 3000 / portTICK_PERIOD_MS;
+
+   if(!display.begin(SSD1306_SWITCHCAPVCC)) {Serial.println(F("SSD1306 allocation failed")); return;}
+   display.clearDisplay();
+   display.drawBitmap(0,0, myBitmap, 128, 64, 1);
+   display.display();
    for(;;){
-       vTaskDelay(2000/portTICK_PERIOD_MS); 
-       xSemaphoreTake(mutex1, portMAX_DELAY);
-       tt=t; hh=h;
-       xSemaphoreGive(mutex1);
-       withScreen(tt, hh);       
+       vTaskDelay(xDelay);
+       t=sht31.readTemperature();
+       h=sht31.readHumidity();
+       if (thdata.updateTH(t,h)) withScreen(t,h);       
    }
 }  
   
@@ -174,11 +204,6 @@ void taskForScreen( void * pvParameters ){
 void setup(){
   Serial.begin(115200);
   pinMode(ledPin, OUTPUT);
-
-  if(!display.begin(SSD1306_SWITCHCAPVCC)) Serial.println(F("SSD1306 allocation failed"));
-  display.clearDisplay();
-  display.drawBitmap(0,0, myBitmap, 128, 64, 1);
-  display.display();
 
   if(!SPIFFS.begin(true)){
    Serial.println("An Error has occurred while mounting SPIFFS");
@@ -242,28 +267,18 @@ void setup(){
   server.begin();
   ArduinoOTA.begin();
 
-  mutex1 = xSemaphoreCreateMutex();
-  xTaskCreatePinnedToCore(taskForScreen, "screen", 2*4096, NULL, 0, NULL,1);
+  mutex = xSemaphoreCreateMutex();
+  thdata=THData(mutex);
+  xTaskCreatePinnedToCore(taskForScreen, "screen", 2400, NULL, 1, NULL,1);
 }
  
 
 void loop(){
-  ArduinoOTA.handle();
-  float tt=0.0;
-  float hh=0.0;
-  if (myTimer1.isReady()) {      
-        tt=sht31.readTemperature();
-        hh=sht31.readHumidity();
-        if (!isnan(t) && !isnan(h)) {
-          withAuto();
-           xSemaphoreTake(mutex1, portMAX_DELAY);        
-              t=tt;
-              h=hh;
-           xSemaphoreGive(mutex1);
-        }
-  }
-  if (myTimer2.isReady()){
-        String temp= String(t)+"+++"+String(h)+"+++";
+  ArduinoOTA.handle();  
+  if (myTimer.isReady()) {      
+        thdata.takeTH(&thd);
+        withAuto(&thd);       
+        String temp= String(thd.t)+"+++"+String(thd.h)+"+++";
         if(is_on) temp=temp+"включен"; else temp=temp+"выключен";
         ws.textAll(temp.c_str());     
   }
