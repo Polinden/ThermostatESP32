@@ -22,6 +22,6 @@
 
 ### What we'v got:
 <p align="left">
-  <img src="assets/image1.jpg" width="205" title="Smartphone screen">
-  <img src="assets/image3.jpg" width="380" title="IoT in a box">
+  <img src="assets/image1.jpg" width="200" title="Smartphone screen">
+  <img src="assets/image3.jpg" width="390" title="IoT in a box">
 </p>
