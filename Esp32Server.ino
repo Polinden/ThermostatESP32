@@ -5,6 +5,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <SPI.h>
+#include <ArduinoOTA.h>
 #include "GyverTimer.h"
 
 #define SCREEN_WIDTH 128 
@@ -100,14 +101,15 @@ AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 GTimer myTimer1(MS, 2000);
 GTimer myTimer2(MS, 4000);
+SemaphoreHandle_t mutex1;
 
-boolean is_on=false;
+volatile boolean is_on=false;
 boolean start_use=false;
 boolean stop_use=false;
 float start_t=20;
 float stop_t=30;
-float t=0.0;
-float h=0.0;
+volatile float t=0.0;
+volatile float h=0.0;
 
 String processor(const String& var){
   String response;
@@ -132,12 +134,12 @@ String processor(const String& var){
 }
 
 
-void withAuto(float t) {
+void withAuto() {
    if ((start_use) && (t<start_t)) {digitalWrite(ledPin, HIGH);  is_on=true;}
    if ((stop_use) && (t>stop_t))  {digitalWrite(ledPin, LOW); is_on=false;}  
 }
 
-void withScreen(float t, float h){
+void withScreen(float t1, float h1){
    display.clearDisplay();
    display.setTextSize(2);             
    display.setTextColor(SSD1306_WHITE);
@@ -147,13 +149,27 @@ void withScreen(float t, float h){
    display.drawLine(0, 18, display.width(), 18, SSD1306_WHITE);
    display.setCursor(0,26);             
    display.setTextSize(1);                
-   display.println("Temp: "+String(t)+"C");   
-   display.println("Humid: "+String(h)+"%");  
+   display.println("Temp: "+String(t1)+"C");   
+   display.println("Humid: "+String(h1)+"%");  
    display.println("");  
    if (is_on) display.println("Heater is On");  
    else display.println("Heater is Off");     
    display.display();    
 }
+
+
+void taskForScreen( void * pvParameters ){
+   float tt=0.0;
+   float hh=0.0;
+   for(;;){
+       vTaskDelay(2000/portTICK_PERIOD_MS); 
+       xSemaphoreTake(mutex1, portMAX_DELAY);
+       tt=t; hh=h;
+       xSemaphoreGive(mutex1);
+       withScreen(tt, hh);       
+   }
+}  
+  
 
 void setup(){
   Serial.begin(115200);
@@ -224,23 +240,31 @@ void setup(){
 
   server.addHandler(&ws);
   server.begin();
+  ArduinoOTA.begin();
 
-  delay(1000);  
+  mutex1 = xSemaphoreCreateMutex();
+  xTaskCreatePinnedToCore(taskForScreen, "screen", 2*4096, NULL, 0, NULL,1);
 }
  
 
 void loop(){
-  if (myTimer1.isReady()) {
-        t=sht31.readTemperature();
-        h=sht31.readHumidity();
-        if (!isnan(t) && !isnan(h)) {withAuto(t); withScreen(t, h);
+  ArduinoOTA.handle();
+  float tt=0.0;
+  float hh=0.0;
+  if (myTimer1.isReady()) {      
+        tt=sht31.readTemperature();
+        hh=sht31.readHumidity();
+        if (!isnan(t) && !isnan(h)) {
+          withAuto();
+           xSemaphoreTake(mutex1, portMAX_DELAY);        
+              t=tt;
+              h=hh;
+           xSemaphoreGive(mutex1);
+        }
   }
   if (myTimer2.isReady()){
-     if (!isnan(t) && !isnan(h)) {        
         String temp= String(t)+"+++"+String(h)+"+++";
         if(is_on) temp=temp+"включен"; else temp=temp+"выключен";
-        ws.textAll(temp.c_str());
-     }   
+        ws.textAll(temp.c_str());     
   }
- }
 }
