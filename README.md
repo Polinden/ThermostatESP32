@@ -13,9 +13,8 @@
 
 ### We used software:
 <ol>
-  <li>Vue</li>
-  <li>Axios</li>
-  <li>ESPAsyncWebServer</li>
+  <li>Vue, Axios (front)</li>
+  <li>ESPAsyncWebServer (back)</li>
   <li>Adafruit libs for thermometer and OLED</li>
   <li>Alex Gyver's helper libs...</li>
 </ol>
