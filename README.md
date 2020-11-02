@@ -22,11 +22,11 @@
 
 ### Features:
 <ol>
-  <li>Multicore and semaphore</li>
+  <li>Multicore and semaphore (FreeRTOS)</li>
   <li>App update over the air</li>
   <li>Local file system (for html)</li>
   <li>Message push via WebSocket</li>
-  <li>I2S and SPI as peripheral</li>
+  <li>I<sup>2</sup>C and SPI as peripheral</li>
 </ol>
 
 
